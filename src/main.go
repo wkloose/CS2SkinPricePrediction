@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -15,7 +17,11 @@ type SteamPriceOverview struct {
 	Volume      string `json:"volume"`
 	MedianPrice string `json:"median_price"`
 }
-
+type ItemSnapshotRecord struct {
+	MarketHashName string             `json:"market_hash_name"`
+	Timestamp      string             `json:"timestamp"`
+	Data           SteamPriceOverview `json:"data"`
+}
 func main() {
 	items := []string{
 		"AK-47 | Redline (Field-Tested)",
@@ -26,6 +32,8 @@ func main() {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	var collectedData []ItemSnapshotRecord
+	fetchTime := time.Now().UTC()
 
 	fmt.Println("Penarikan data harian Steam Market...")
 
@@ -70,7 +78,12 @@ func main() {
 
 		if data.Success {
 			fmt.Printf("[%d/%d] BERHASIL | %s\n", i+1, len(items), itemName)
-			fmt.Printf("    -> Harga rata-rata: %s | Volume: %s\n", data.MedianPrice, data.Volume)
+			fmt.Printf("    -> Harga median: %s | Volume: %s\n", data.MedianPrice, data.Volume)
+			collectedData = append(collectedData, ItemSnapshotRecord{
+				MarketHashName: itemName,
+				Timestamp:      fetchTime.Format(time.RFC3339),
+				Data:           data,
+			})
 		} else {
 			fmt.Printf("[%d/%d] ITEM TIDAK DITEMUKAN | %s\n", i+1, len(items), itemName)
 		}
@@ -78,6 +91,16 @@ func main() {
 		if i < len(items)-1 {
 			time.Sleep(3 * time.Second)
 		}
+	}
+	if len(collectedData) > 0 {
+		rawDir := filepath.Join("data", "raw")
+		_ = os.MkdirAll(rawDir, os.ModePerm)
+
+		outputFilePath := filepath.Join(rawDir, fmt.Sprintf("snapshot_%s.json", fetchTime.Format("2006-01-02")))
+		fileBytes, _ := json.MarshalIndent(collectedData, "", "  ")
+		_ = os.WriteFile(outputFilePath, fileBytes, 0644)
+
+		fmt.Printf("\nData snapshot berhasil disimpan di: %s\n", outputFilePath)
 	}
 	
 	fmt.Println("Penarikan selesai dijalankan.")
