@@ -22,20 +22,37 @@ type ItemSnapshotRecord struct {
 	Timestamp      string             `json:"timestamp"`
 	Data           SteamPriceOverview `json:"data"`
 }
+
+func loadItemsConfig(filePath string) ([]string, error) {
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []string
+	if err := json.Unmarshal(fileBytes, &items); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
 func main() {
-	items := []string{
-		"AK-47 | Redline (Field-Tested)",
-		"AWP | Asiimov (Battle-Scarred)",
-		"M4A4 | Neo-Noir (Minimal Wear)",
+	configPath := filepath.Join("configs", "items.json")
+	items, err := loadItemsConfig(configPath)
+	if err != nil {
+		fmt.Printf("Error membaca konfigurasi item dari %s: %v\n", configPath, err)
+		return
 	}
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+
 	var collectedData []ItemSnapshotRecord
 	fetchTime := time.Now().UTC()
 
-	fmt.Println("Penarikan data harian Steam Market...")
+	fmt.Printf("Memulai penarikan data harian untuk %d item dari %s...\n", len(items), configPath)
 
 	for i, itemName := range items {
 		encodedName := url.QueryEscape(itemName)
@@ -79,6 +96,7 @@ func main() {
 		if data.Success {
 			fmt.Printf("[%d/%d] BERHASIL | %s\n", i+1, len(items), itemName)
 			fmt.Printf("    -> Harga median: %s | Volume: %s\n", data.MedianPrice, data.Volume)
+			
 			collectedData = append(collectedData, ItemSnapshotRecord{
 				MarketHashName: itemName,
 				Timestamp:      fetchTime.Format(time.RFC3339),
@@ -92,6 +110,7 @@ func main() {
 			time.Sleep(3 * time.Second)
 		}
 	}
+	
 	if len(collectedData) > 0 {
 		rawDir := filepath.Join("data", "raw")
 		_ = os.MkdirAll(rawDir, os.ModePerm)
