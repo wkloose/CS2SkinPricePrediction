@@ -1,0 +1,38 @@
+market_hash_name,timestamp,lowest_price,median_price,volume,success
+AK-47 | Ice Coaled (Field-Tested),2026-10-16T17:31:36.482171+00:00,Rp 90 189,Rp 93 935.05,565,True
+AK-47 | Phantom Disruptor (Field-Tested),2026-10-16T17:31:38.754346+00:00,Rp 112 620,Rp 112 832.93,166,True
+AK-47 | Legion of Anubis (Field-Tested),2026-10-16T17:32:24.019515+00:00,Rp 683 935,Rp 674 618.95,62,True
+AK-47 | Neon Revolution (Field-Tested),2026-10-16T17:32:26.245995+00:00,Rp 2 285 834,Rp 2 294 455.42,7,True
+M4A1-S | Cyrex (Field-Tested),2026-10-16T17:32:28.453136+00:00,Rp 3 572 737,Rp 3 587 295.90,5,True
+M4A1-S | Nightmare (Field-Tested),2026-10-16T17:32:30.665172+00:00,Rp 185 002,Rp 180 376.54,87,True
+M4A1-S | Player Two (Field-Tested),2026-10-16T17:32:32.928183+00:00,Rp 1 065 838,Rp 1 117 342.76,15,True
+M4A1-S | Leaded Glass (Field-Tested),2026-10-16T17:32:35.128099+00:00,Rp 213 516,Rp 212 632.34,56,True
+M4A1-S | Basilisk (Field-Tested),2026-10-16T17:32:37.335282+00:00,Rp 165 083,Rp 149 408.43,53,True
+M4A4 | Desolate Space (Field-Tested),2026-10-16T17:32:39.537398+00:00,Rp 273 335,Rp 266 473.39,109,True
+M4A4 | The Emperor (Field-Tested),2026-10-16T17:32:41.752967+00:00,Rp 1 184 255,Rp 1 108 738.57,26,True
+M4A4 | Evil Daimyo (Field-Tested),2026-10-16T17:32:44.003751+00:00,Rp 60 914,Rp 61 367.31,105,True
+M4A4 | In Living Color (Field-Tested),2026-10-16T17:33:29.359936+00:00,Rp 641 932,Rp 602 906.88,11,True
+AWP | Mortis (Field-Tested),2026-10-16T17:33:31.571915+00:00,Rp 67 946,Rp 73 255.78,211,True
+AWP | Neo-Noir (Field-Tested),2026-10-16T17:33:33.793130+00:00,Rp 885 870,Rp 807 464.57,42,True
+AWP | Duality (Field-Tested),2026-10-16T17:33:36.026186+00:00,Rp 61 324,Rp 60 806.82,356,True
+AWP | Fever Dream (Field-Tested),2026-10-16T17:33:38.246428+00:00,Rp 245 790,Rp 268 027.69,44,True
+AWP | Elite Build (Field-Tested),2026-10-16T17:33:40.513145+00:00,Rp 238 041,Rp 251 360.06,16,True
+USP-S | Cortex (Field-Tested),2026-10-16T17:33:42.717442+00:00,Rp 78 995,Rp 77 523.10,215,True
+USP-S | The Traitor (Field-Tested),2026-10-16T17:33:44.918009+00:00,Rp 752 330,Rp 633 628.47,17,True
+USP-S | Cyrex (Field-Tested),2026-10-16T17:33:47.148440+00:00,Rp 62 412,Rp 66 606.66,60,True
+USP-S | Black Lotus (Field-Tested),2026-10-16T17:33:49.369769+00:00,Rp 22 037,Rp 23 344.48,154,True
+USP-S | Ticket to Hell (Field-Tested),2026-10-16T17:33:51.574088+00:00,Rp 11 762,Rp 11 571.30,795,True
+Glock-18 | Vogue (Field-Tested),2026-10-16T17:33:53.789628+00:00,Rp 81 219,Rp 80 435.22,246,True
+Glock-18 | Bullet Queen (Field-Tested),2026-10-16T17:33:55.993539+00:00,Rp 1 068 648,Rp 1 148 394.05,12,True
+Glock-18 | Wasteland Rebel (Field-Tested),2026-10-16T17:33:58.254302+00:00,Rp 2 265 530,Rp 2 435 133.69,3,True
+Glock-18 | Weasel (Field-Tested),2026-10-16T17:34:00.488581+00:00,Rp 28 507,Rp 24 868.60,59,True
+Glock-18 | High Beam (Factory New),2026-10-16T17:34:02.699261+00:00,Rp 3 056,Rp 3 252.96,626,True
+Desert Eagle | Conspiracy (Factory New),2026-10-16T17:34:35.580586+00:00,Rp 406 090,Rp 450 687.63,16,True
+Desert Eagle | Light Rail (Field-Tested),2026-10-16T17:34:37.820145+00:00,Rp 25 071,Rp 26 967.39,296,True
+Desert Eagle | Trigger Discipline (Field-Tested),2026-10-16T17:34:40.023347+00:00,Rp 17 206,Rp 15 943.46,279,True
+Desert Eagle | Ocean Drive (Field-Tested),2026-10-16T17:34:42.221158+00:00,Rp 1 615 119,Rp 1 616 297.51,5,True
+MAC-10 | Ensnared (Field-Tested),2026-10-16T17:34:44.427594+00:00,Rp 1 565,Rp 1 973.81,636,True
+MAC-10 | Disco Tech (Field-Tested),2026-10-16T17:34:46.635700+00:00,Rp 116 912,Rp 109 573.27,54,True
+MP9 | Starlight Protector (Field-Tested),2026-10-16T17:34:48.848414+00:00,Rp 1 258 748,Rp 1 310 108.89,97,True
+MP9 | Food Chain (Field-Tested),2026-10-16T17:34:51.044967+00:00,Rp 77 382,Rp 78 524.71,81,True
+P90 | Vent Rush (Field-Tested),2026-10-16T17:34:53.307154+00:00,Rp 7 805,Rp 8 523.24,151,True
