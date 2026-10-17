@@ -29,12 +29,12 @@ CS2SkinPricePrediction/
 
 Data Version Control (DVC) Pipeline
 
-Proyek ini menggunakan **DVC (Data Version Control)** untuk mengelola silsilah data (*data lineage*) dan melacak versi dataset mentah secara efisien tanpa membebani repositori Git dengan file data berukuran besar.
+Proyek ini menggunakan DVC (Data Version Control) untuk mengelola silsilah data (data lineage) dan melacak versi dataset mentah secara efisien tanpa membebani repositori Git dengan file data berukuran besar.
 
 1. Struktur Pelacakan Data
 - File data mentah di folder `data/raw/` diabaikan oleh Git via `.gitignore` dan dikelola sepenuhnya oleh DVC.
 - File pointer metadata `data/raw.dvc` melacak hash MD5 dan volume dataset di repositori Git.
-- Seluruh versi fisik dataset disimpan di dalam *remote storage* DVC.
+- Seluruh versi fisik dataset disimpan di dalam remote storage DVC.
 
 2. Panduan Reproduksibilitas Data
 Mengunduh dataset yang sesuai dengan commit: dvc pull
