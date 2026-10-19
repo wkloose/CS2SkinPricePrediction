@@ -222,3 +222,5 @@ __marimo__/
 mlruns/
 .trash/
 artifacts/
+mlflow.db
+*.db
