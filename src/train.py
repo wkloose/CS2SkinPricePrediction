@@ -18,12 +18,8 @@ def load_data(file_path: str) -> pd.DataFrame:
     return df
 
 def preprocess_data(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42):
-    """
-    Menyiapkan matriks fitur X dan target y untuk pelatihan regresi.
-    Target: lowest_price_clean
-    """
+    """Menyiapkan matriks fitur X dan target y untuk pelatihan regresi."""
     df_clean = df.dropna(subset=['lowest_price_clean']).copy()
-    
     candidate_features = [
         'day_of_week', 'volume_clean', 'price_delta', 
         'volume_delta', 'price_ma_3d', 'price_ma_7d'
@@ -59,7 +55,7 @@ def evaluate_model(y_true, y_pred) -> dict:
     }
 
 def plot_actual_vs_predicted(y_true, y_pred, run_name: str, output_path: str = "artifacts/actual_vs_predicted.png"):
-    """Menghasilkan plot evaluasi actual vs Predicted untuk dicatat sebagai artefak MLflow."""
+    """Menghasilkan plot evaluasi actual vs predicted untuk dicatat sebagai artefak MLflow."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.figure(figsize=(8, 6))
     plt.scatter(y_true, y_pred, alpha=0.6, color="#1f77b4", edgecolors="k", s=40, label="Prediksi")
@@ -78,20 +74,19 @@ def plot_actual_vs_predicted(y_true, y_pred, run_name: str, output_path: str = "
 
 def main():
     parser = argparse.ArgumentParser(description="Pelatihan model prediksi harga skin CS2 dengan pelacakan MLflow")
-    parser.add_argument("--data_path", type=str, default="data/processed/cs2_market_features.csv", help="Lokasi file data fitur")
-    parser.add_argument("--model_type", type=str, default="random_forest", choices=["ridge", "random_forest"], help="Jenis algoritma model")
-    parser.add_argument("--run_name", type=str, default="run_experiment", help="Nama identitas run di MLflow")
-    parser.add_argument("--test_size", type=float, default=0.2, help="Proporsi data pengujian (test set)")
-    parser.add_argument("--random_state", type=int, default=42, help="Random seed reproduksibilitas")
-    
-    parser.add_argument("--alpha", type=float, default=1.0, help="Koefisien regularisasi Ridge")
-    
-    parser.add_argument("--n_estimators", type=int, default=100, help="Jumlah pohon di random forest")
-    parser.add_argument("--max_depth", type=int, default=10, help="Kedalaman maksimum pohon")
-    parser.add_argument("--min_samples_split", type=int, default=2, help="Batas minimum sampel pembagian daun")
+    parser.add_argument("--data_path", type=str, default="data/processed/cs2_market_features.csv")
+    parser.add_argument("--model_type", type=str, default="random_forest", choices=["ridge", "random_forest"])
+    parser.add_argument("--run_name", type=str, default="run_experiment")
+    parser.add_argument("--test_size", type=float, default=0.2)
+    parser.add_argument("--random_state", type=int, default=42)
+    parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--n_estimators", type=int, default=100)
+    parser.add_argument("--max_depth", type=int, default=10)
+    parser.add_argument("--min_samples_split", type=int, default=2)
     
     args = parser.parse_args()
     
+    mlflow.set_tracking_uri("sqlite:///mlflow.db")
     experiment_name = "cs2-skin-price-prediction"
     mlflow.set_experiment(experiment_name)
     
@@ -113,7 +108,6 @@ def main():
     }
     
     with mlflow.start_run(run_name=args.run_name, tags=tags):
-        # 1. Catat Parameter
         params = {
             "model_type": args.model_type,
             "test_size": args.test_size,
@@ -151,11 +145,22 @@ def main():
             
         plot_path = plot_actual_vs_predicted(y_test, y_pred, args.run_name, f"artifacts/{args.run_name}_actual_vs_pred.png")
         mlflow.log_artifact(plot_path, artifact_path="evaluation_plots")
-        print(f" Plot evaluasi dicatat ke MLflow: {plot_path}")
+        print(f"Plot evaluasi dicatat ke MLflow: {plot_path}")
         
-        mlflow.sklearn.log_model(model, artifact_path="model")
+        try:
+            mlflow.sklearn.log_model(
+                model, 
+                artifact_path="model", 
+                serialization_format="cloudpickle"
+            )
+        except Exception:
+            mlflow.sklearn.log_model(
+                model, 
+                artifact_path="model", 
+                skops_trusted_types=["sklearn.tree._tree.Tree"]
+            )
         print("Objek model (MLmodel & model.pkl) berhasil dicatat ke MLflow.")
-        print(f"Selesai! Run '{args.run_name}' tersimpan.")
+        print(f"Selesai! run '{args.run_name}' tersimpan sukses.")
 
 if __name__ == "__main__":
     main()
