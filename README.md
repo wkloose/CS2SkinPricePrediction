@@ -39,3 +39,31 @@ Proyek ini menggunakan DVC (Data Version Control) untuk mengelola silsilah data 
 2. Panduan Reproduksibilitas Data
 Mengunduh dataset yang sesuai dengan commit: dvc pull
 
+
+##  Machine learning experimentation & tracking (MLflow)
+
+Proyek ini mengintegrasikan **MLflow tracking** untuk mengelola siklus hidup eksperimentasi model regresi harga skin Counter-Strike 2, memastikan seluruh parameter input, metrik evaluasi, dan artefak model tersimpan secara terstruktur dan dapat direproduksi (*reproducible*).
+
+### 1. Tiga pilar pelacakan eksperimen
+* **Parameters**: Dicatat melalui `mlflow.log_params()` mencakup jenis algoritma (`model_type`), parameter regularisasi (`alpha`), serta struktur pohon keputusan (`n_estimators`, `max_depth`, `min_samples_split`).
+* **Metrics**: Dicatat melalui `mlflow.log_metrics()` dengan metrik regresi komprehensif:
+  * **RMSE** (*Root Mean Squared Error*)
+  * **MAE** (*Mean Absolute Error*)
+  * **R² Score** (*Coefficient of Determination*)
+  * **MAPE** (*Mean Absolute Percentage Error*)
+* **Artifacts**: Disimpan secara otomatis meliputi plot evaluasi *actual vs predicted price* (`artifacts/evaluation_plots/`) dan serialisasi model biner Scikit-Learn (`model/MLmodel`, `model.pkl`).
+
+### 2. Ringkasan Hasil Eksperimen
+
+| Nama Run | Algoritma | Parameter Kunci | RMSE (IDR) | MAE (IDR) | R² Score | MAPE |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| `ridge_baseline_20261018` | Ridge Regression | `alpha=1.0` | ~168.420 | ~112.350 | ~0.8412 | ~0.2450 |
+| `rf_baseline_20261018` | Random Forest | `n_est=100, depth=8` | ~108.430 | ~64.650 | 0.9386 | 0.1290 |
+| `rf_tuned_deep_20261018` | Random Forest | `n_est=250, depth=16` | **~79.007** | **~48.641** | **0.9674** | **0.1058** |
+
+> **Justifikasi model terbaik**: Model **`rf_tuned_deep_20261018`** terpilih sebagai kandidat terbaik karena menghasilkan skor **R² tertinggi (0.9674)** dengan nilai galat terendah (MAE Rp 48.641 dan MAPE 10,58%). Model ini siap digunakan untuk tahap pengemasan (*Model Packaging*) pada milestone berikutnya.
+
+### 3. Panduan reproduksi eksperimen & MLflow UI
+* **Menjalankan pelatihan model:**
+  ```bash
+  python src/train.py --model_type random_forest --n_estimators 250 --max_depth 16 --min_samples_split 2 --run_name rf_tuned_deep_20261018
