@@ -1,48 +1,56 @@
-# Proyek MLOps: Prediksi Harga Skin CS2
+# Proyek MLOps: Prediksi harga skin CS2
 
-Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di steam community market berbasis *Continual Learning* dan penanganan *Data Drift*.
+Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning* dan penanganan *Data Drift*.
 
 ---
 
 ## Struktur direktori
 
-Struktur proyek mengadopsi standar industri *Cookiecutter data science*:
+Struktur proyek mengadopsi standar industri *Cookiecutter Data Science*:
 
 ```text
 CS2SkinPricePrediction/
-├── .devcontainer/       # Konfigurasi container gitHub codespaces
+├── .devcontainer/
 ├── configs/
-│   └── items.json       # Konfigurasi modular daftar skin CS2
+│   └── items.json
 ├── data/
-│   ├── raw/             # Snapshot data mentah bertimestamp dari steam API
-│   └── processed/       # Dataset hasil feature engineering (CSV & parquet)
-├── docs/                # Dokumentasi arsitektur dan lembar kerja MLOps
-├── models/              # Artefak model ML (tahap berikutnya)
-├── notebooks/           # Notebook eksplorasi data awal (EDA)
+│   ├── raw/
+│   └── processed/
+├── docs/
+├── models/
+│   └── model.pkl
+├── notebooks/
 ├── src/
-│   ├── ingest_data.py   # Pipeline penarikan data dinamis & rate-limiting
-│   ├── preprocess.py    # Pipeline pembersihan data & feature engineering
-│   └── main.go          # Pipeline ingestion alternatif berbasis Go
-├── requirements.txt     # Daftar dependensi pustaka Python
-└── README.md            # Dokumentasi utama proyek
+│   ├── export_model.py
+│   ├── ingest_data.py
+│   ├── preprocess.py
+│   ├── train.py
+│   └── main.go
+├── app.py
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
 
+---
 
-Data Version Control (DVC) Pipeline
+## Data Version Control (DVC) Pipeline
 
-Proyek ini menggunakan DVC (Data Version Control) untuk mengelola silsilah data (data lineage) dan melacak versi dataset mentah secara efisien tanpa membebani repositori Git dengan file data berukuran besar.
+Proyek ini menggunakan DVC (Data Version Control) untuk mengelola silsilah data (*data lineage*) dan melacak versi dataset mentah secara efisien tanpa membebani repositori Git dengan file data berukuran besar.
 
-1. Struktur Pelacakan Data
-- File data mentah di folder `data/raw/` diabaikan oleh Git via `.gitignore` dan dikelola sepenuhnya oleh DVC.
-- File pointer metadata `data/raw.dvc` melacak hash MD5 dan volume dataset di repositori Git.
-- Seluruh versi fisik dataset disimpan di dalam remote storage DVC.
+1. **Struktur pelacakan data**
+   - File data mentah di folder `data/raw/` diabaikan oleh Git via `.gitignore` dan dikelola sepenuhnya oleh DVC.
+   - File pointer metadata `data/raw.dvc` melacak hash MD5 dan volume dataset di repositori Git.
+   - Seluruh versi fisik dataset disimpan di dalam remote storage DVC.
 
-2. Panduan Reproduksibilitas Data
-Mengunduh dataset yang sesuai dengan commit: dvc pull
+2. **Panduan reproduksibilitas data**
+   - Mengunduh dataset yang sesuai dengan commit: `dvc pull`
 
+---
 
-##  Machine learning experimentation & tracking (MLflow)
+## Machine Learning experimentation & tracking (MLflow)
 
-Proyek ini mengintegrasikan **MLflow tracking** untuk mengelola siklus hidup eksperimentasi model regresi harga skin Counter-Strike 2, memastikan seluruh parameter input, metrik evaluasi, dan artefak model tersimpan secara terstruktur dan dapat direproduksi (*reproducible*).
+Proyek ini mengintegrasikan **MLflow Tracking** untuk mengelola siklus hidup eksperimentasi model regresi harga skin Counter-Strike 2, memastikan seluruh parameter input, metrik evaluasi, dan artefak model tersimpan secara terstruktur dan dapat direproduksi (*reproducible*).
 
 ### 1. Tiga pilar pelacakan eksperimen
 * **Parameters**: Dicatat melalui `mlflow.log_params()` mencakup jenis algoritma (`model_type`), parameter regularisasi (`alpha`), serta struktur pohon keputusan (`n_estimators`, `max_depth`, `min_samples_split`).
@@ -53,7 +61,7 @@ Proyek ini mengintegrasikan **MLflow tracking** untuk mengelola siklus hidup eks
   * **MAPE** (*Mean Absolute Percentage Error*)
 * **Artifacts**: Disimpan secara otomatis meliputi plot evaluasi *actual vs predicted price* (`artifacts/evaluation_plots/`) dan serialisasi model biner Scikit-Learn (`model/MLmodel`, `model.pkl`).
 
-### 2. Ringkasan Hasil Eksperimen
+### 2. Ringkasan hasil eksperimen
 
 | Nama Run | Algoritma | Parameter Kunci | RMSE (IDR) | MAE (IDR) | R² Score | MAPE |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -61,9 +69,59 @@ Proyek ini mengintegrasikan **MLflow tracking** untuk mengelola siklus hidup eks
 | `rf_baseline_20261018` | Random Forest | `n_est=100, depth=8` | ~108.430 | ~64.650 | 0.9386 | 0.1290 |
 | `rf_tuned_deep_20261018` | Random Forest | `n_est=250, depth=16` | **~79.007** | **~48.641** | **0.9674** | **0.1058** |
 
-> **Justifikasi model terbaik**: Model **`rf_tuned_deep_20261018`** terpilih sebagai kandidat terbaik karena menghasilkan skor **R² tertinggi (0.9674)** dengan nilai galat terendah (MAE Rp 48.641 dan MAPE 10,58%). Model ini siap digunakan untuk tahap pengemasan (*Model Packaging*) pada milestone berikutnya.
+> **Justifikasi model terbaik**: Model **`rf_tuned_deep_20261018`** terpilih sebagai kandidat terbaik karena menghasilkan skor **R² tertinggi (0.9674)** dengan nilai galat terendah (MAE Rp 48.641 dan MAPE 10,58%).
 
-### 3. Panduan reproduksi eksperimen & MLflow UI
-* **Menjalankan pelatihan model:**
-  ```bash
-  python src/train.py --model_type random_forest --n_estimators 250 --max_depth 16 --min_samples_split 2 --run_name rf_tuned_deep_20261018
+### 3. Panduan reproduksi eksperimen
+Menjalankan pelatihan model:
+```bash
+python src/train.py --model_type random_forest --n_estimators 250 --max_depth 16 --min_samples_split 2 --run_name rf_tuned_deep_20261018
+```
+
+---
+
+## Model packaging & containerization (Docker)
+
+Proyek ini mengemas model terbaik hasil eksperimentasi MLflow (`rf_tuned_deep_20261018`) ke dalam layanan inferensi REST API mandiri menggunakan **Flask** dan **Docker**, menjamin reproduksibilitas penuh di lingkungan apa pun tanpa risiko *dependency hell*.
+
+### 1. Struktur layanan API
+* **`GET /health`**: Memeriksa status kesehatan layanan inferensi dan model yang aktif.
+* **`POST /predict`**: Menerima payload JSON fitur skin CS2 dan mengembalikan estimasi harga pasar (IDR).
+
+### 2. Panduan menjalankan kontainer
+1. **Membangun docker image:**
+   ```bash
+   docker build -t cs2-price-api:v1 .
+   ```
+2. **Menjalankan kontainer (background mode):**
+   ```bash
+   docker run -d -p 5000:5000 --name cs2-service cs2-price-api:v1
+   ```
+3. **Memeriksa status & log:**
+   ```bash
+   docker ps
+   docker logs cs2-service
+   ```
+
+### 3. Pengujian endpoint inferensi
+Kirim permintaan inferensi menggunakan `curl`:
+```bash
+curl -s -X POST http://localhost:5000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [1, 250, 1500.0, 50, 210000.0, 215000.0]}'
+```
+
+**Respon JSON:**
+```json
+{
+  "model": "rf_tuned_deep_20261018",
+  "prediction": [208768.77],
+  "status": "success",
+  "unit": "IDR"
+}
+```
+
+### 4. Menghentikan layanan
+```bash
+docker stop cs2-service
+docker rm cs2-service
+```
