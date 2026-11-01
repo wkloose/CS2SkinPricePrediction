@@ -1,0 +1,13 @@
+.git
+.gitignore
+.devcontainer
+.dvc
+.dvcignore
+data/raw
+mlruns
+mlflow.db
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
