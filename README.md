@@ -1,6 +1,6 @@
 # Proyek MLOps: Prediksi harga skin CS2
 
-Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning* dan penanganan *Data Drift*.
+Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning*, penanganan *Data Drift*, pengemasan kontainer Docker, dan otomatisasi pipeline CI/CD end-to-end dengan GitHub Actions.
 
 ---
 
@@ -11,6 +11,9 @@ Struktur proyek mengadopsi standar industri *Cookiecutter Data Science*:
 ```text
 CS2SkinPricePrediction/
 ├── .devcontainer/
+├── .github/
+│   └── workflows/
+│       └── mlops-automation.yaml
 ├── configs/
 │   └── items.json
 ├── data/
@@ -21,13 +24,18 @@ CS2SkinPricePrediction/
 │   └── model.pkl
 ├── notebooks/
 ├── src/
+│   ├── evaluate.py
 │   ├── export_model.py
 │   ├── ingest_data.py
+│   ├── prepare_data.py
 │   ├── preprocess.py
 │   ├── train.py
 │   └── main.go
+├── tests/
+│   └── test_preprocess.py
 ├── app.py
 ├── Dockerfile
+├── pytest.ini
 ├── requirements.txt
 └── README.md
 ```
@@ -124,4 +132,33 @@ curl -s -X POST http://localhost:5000/predict \
 ```bash
 docker stop cs2-service
 docker rm cs2-service
+```
+
+---
+
+## CI/CD Pipeline Automation (GitHub Actions)
+
+Otomatisasi pengujian, pelatihan, dan registrasi model secara berkelanjutan dikelola melalui alur kerja GitHub Actions pada berkas `.github/workflows/mlops-automation.yaml` dengan prinsip Code as a Trigger.
+
+### 1. Tiga tahap pipeline CI/CD
+* **Job 1: Automated Unit Testing (`testing`)**: Menjalankan pengujian otomatis dengan pytest pada `tests/test_preprocess.py` untuk memvalidasi sanitasi harga, volume, serta integritas fitur pasar sebelum tahap pelatihan.
+* **Job 2: Model Training & Experiment Tracking (`training`)**: Berjalan setelah testing lulus (`needs: testing`). Menyiapkan dataset fitur terverifikasi, melatih model Random Forest, mencatat metrik ke MLflow, dan mengunggah artefak model.
+* **Job 3: Threshold Evaluation & Model Registry (`registry`)**: Berjalan setelah training selesai (`needs: training`). Mengevaluasi metrik model terbaru terhadap ambang batas minimal (R² >= 0.85). Model yang memenuhi syarat didaftarkan ke MLflow Model Registry dan statusnya dipromosikan ke tahap Staging.
+
+### 2. Panduan eksekusi lokal
+1. Menjalankan pengujian unit:
+```bash
+pytest tests/ -v
+```
+2. Menyiapkan dataset fitur:
+```bash
+python src/prepare_data.py
+```
+3. Melatih model dengan MLflow:
+```bash
+python src/train.py --model_type random_forest --n_estimators 150 --max_depth 12 --run_name manual_test_run
+```
+4. Mengevaluasi threshold dan registrasi model:
+```bash
+python src/evaluate.py --threshold 0.85
 ```
