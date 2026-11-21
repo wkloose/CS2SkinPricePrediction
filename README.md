@@ -1,6 +1,6 @@
 # Proyek MLOps: Prediksi harga skin CS2
 
-Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning*, penanganan *Data Drift*, pengemasan kontainer Docker, dan otomatisasi pipeline CI/CD end-to-end dengan GitHub Actions.
+Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning*, penanganan *Data Drift*, pengemasan kontainer Docker, otomatisasi pipeline CI/CD end-to-end dengan GitHub Actions, serta orkestrasi multi-layanan berbasis Docker Compose.
 
 ---
 
@@ -23,6 +23,8 @@ CS2SkinPricePrediction/
 ├── models/
 │   └── model.pkl
 ├── notebooks/
+├── scripts/
+│   └── verify_orchestration.py
 ├── src/
 │   ├── evaluate.py
 │   ├── export_model.py
@@ -34,7 +36,9 @@ CS2SkinPricePrediction/
 ├── tests/
 │   └── test_preprocess.py
 ├── app.py
+├── docker-compose.yaml
 ├── Dockerfile
+├── Dockerfile.mlflow
 ├── pytest.ini
 ├── requirements.txt
 └── README.md
@@ -162,3 +166,53 @@ python src/train.py --model_type random_forest --n_estimators 150 --max_depth 12
 ```bash
 python src/evaluate.py --threshold 0.85
 ```
+
+---
+
+## Multi-Container Service Orchestration (Docker Compose)
+
+Pada tahap orkestrasi, sistem mengintegrasikan tiga layanan mandiri ke dalam satu ekosistem terpadu menggunakan **Docker Compose**: API inferensi model, server pelacakan terpusat MLflow, dan basis data metadata relasional PostgreSQL.
+
+### 1. Arsitektur layanan terorkestrasi
+
+| Layanan | Nama Kontainer | Port Host | Port Kontainer | Fungsi & Ketergantungan |
+| :--- | :--- | :---: | :---: | :--- |
+| `postgres` | `cs2-postgres-db` | 5432 | 5432 | Basis data relasional untuk penyimpanan metadata MLflow dan tabel riwayat log inferensi (`inference_logs`). Dilengkapi healthcheck periodik. |
+| `mlflow-server` | `cs2-mlflow-server` | 5001 | 5000 | Server pelacakan eksperimen dan Model Registry terpusat dengan backend store PostgreSQL. Bergantung pada `postgres` (`service_healthy`). |
+| `api-service` | `cs2-api-service` | 8080 | 5000 | REST API inferensi harga skin CS2. Bergantung pada `postgres` dan `mlflow-server` untuk pencatatan log dan validasi model. |
+
+### 2. Mekanisme utama orkestrasi
+* **Service Discovery**: Seluruh kontainer berada di dalam satu custom bridge network (`mlops-net`). Komunikasi antar-layanan menggunakan nama host DNS internal (`postgres:5432` dan `http://mlflow-server:5000`), mengeliminasi ketergantungan pada alamat IP acak.
+* **Data Persistence**: Menggunakan Docker Named Volumes (`pg_data` untuk `/var/lib/postgresql/data` dan `mlflow_data` untuk `/mlruns`). Data metadata, log inferensi, dan artefak model tetap persisten saat kontainer dihentikan atau direstart.
+* **Urutan Startup Deterministik**: Konfigurasi `depends_on` dengan evaluasi `condition: service_healthy` memastikan layanan basis data siap melayani koneksi sebelum MLflow server dan API inferensi dijalankan.
+
+### 3. Panduan operasional Docker Compose
+1. **Membangun dan menjalankan seluruh layanan (background mode):**
+   ```bash
+   docker compose up -d --build
+   ```
+2. **Memeriksa status dan kesehatan kontainer:**
+   ```bash
+   docker compose ps
+   ```
+3. **Menjalankan pengujian integrasi otomatis:**
+   ```bash
+   python scripts/verify_orchestration.py
+   ```
+4. **Pengujian persistensi data (simulasi kegagalan layanan):**
+   - Hentikan kontainer database:
+     ```bash
+     docker compose stop postgres
+     ```
+   - Jalankan kembali kontainer database:
+     ```bash
+     docker compose start postgres
+     ```
+   - Verifikasi riwayat log prediksi tetap utuh:
+     ```bash
+     curl -s http://localhost:8080/logs
+     ```
+5. **Menghentikan seluruh layanan:**
+   ```bash
+   docker compose down
+   ```
