@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cs2-postgres-db
+    restart: always
+    environment:
+      POSTGRES_DB: mlops_db
+      POSTGRES_USER: mlops_user
+      POSTGRES_PASSWORD: mlops_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - mlops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlops_user -d mlops_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mlflow-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: cs2-mlflow-server
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BACKEND_STORE_URI: postgresql+psycopg2://mlops_user:mlops_password@postgres:5432/mlops_db
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlruns
+    ports:
+      - "5001:5000"
+    volumes:
+      - mlflow_data:/mlruns
+    networks:
+      - mlops-net
+
+  api-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cs2-api-service
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_started
+    environment:
+      PORT: 5000
+      MLFLOW_TRACKING_URI: http://mlflow-server:5000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: mlops_db
+      DB_USER: mlops_user
+      DB_PASSWORD: mlops_password
+    ports:
+      - "8080:5000"
+    networks:
+      - mlops-net
+
+networks:
+  mlops-net:
+    driver: bridge
+
+volumes:
+  pg_data:
+    driver: local
+  mlflow_data:
+    driver: local
