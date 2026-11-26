@@ -12,13 +12,20 @@ def evaluate_and_promote(
     threshold: float = 0.85,
     experiment_name: str = "cs2-skin-price-prediction",
     model_name: str = "cs2-skin-price-predictor",
-    tracking_uri: str = "sqlite:///mlflow.db",
+    tracking_uri: str | None = None,
+    stage: str = "Staging",
+    alias: str | None = None,
 ):
     """
     Mengevaluasi model hasil training berdasarkan threshold performa R2.
-    Jika performa memenuhi batas, model didaftarkan ke MLflow model registry
-    dan status siklus hidupnya dipromosikan ke tahap 'Staging'.
+    Jika performa memenuhi batas, model didaftarkan ke MLflow model registry,
+    diberi alias target (mis. @staging atau @production), serta dipromosikan ke stage target.
     """
+    if tracking_uri is None:
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+
+    target_alias = alias if alias else stage.lower()
+
     mlflow.set_tracking_uri(tracking_uri)
     client = MlflowClient(tracking_uri=tracking_uri)
 
@@ -28,6 +35,7 @@ def evaluate_and_promote(
     print(f"Tracking URI     : {tracking_uri}")
     print(f"Eksperimen       : {experiment_name}")
     print(f"Target model     : {model_name}")
+    print(f"Target stage     : {stage} (alias: @{target_alias})")
     print(f"Threshold R2     : {threshold:.4f}")
     print("-" * 65)
 
@@ -74,16 +82,28 @@ def evaluate_and_promote(
         version = registered_model.version
         print(f"Model berhasil didaftarkan sebagai versi {version}!")
 
+        client.set_registered_model_alias(
+            name=model_name,
+            alias=target_alias,
+            version=version,
+        )
+        print(f"Alias model versi {version} diset ke '@{target_alias}'.")
+        print(f"URI siap serving: models:/{model_name}@{target_alias} (atau models:/{model_name}/{version})")
+    except Exception as e:
+        print(f"Error saat registrasi model atau set alias: {e}")
+        sys.exit(1)
+
+    try:
         client.transition_model_version_stage(
             name=model_name,
             version=version,
-            stage="Staging",
+            stage=stage,
             archive_existing_versions=True,
         )
-        print(f"Status model versi {version} sukses dipromosikan ke tahap: 'staging'")
-    except Exception as e:
-        print(f"Catatan proses registrasi: {e}")
-    
+        print(f"Status stage model versi {version} dipromosikan ke: '{stage}'")
+    except Exception as stage_err:
+        print(f"Catatan legacy stage transition: {stage_err}")
+
     print("=" * 65)
     print("Pipeline evaluasi dan promosi model selesai dengan sukses.")
     print("=" * 65)
@@ -102,12 +122,27 @@ if __name__ == "__main__":
     parser.add_argument(
         "--tracking_uri",
         type=str,
-        default="sqlite:///mlflow.db",
+        default=os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db"),
         help="MLflow tracking URI",
+    )
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="Staging",
+        choices=["Staging", "Production"],
+        help="Target stage promosi model (default: Staging)",
+    )
+    parser.add_argument(
+        "--alias",
+        type=str,
+        default=None,
+        help="Alias MLflow Model Registry (default: huruf kecil dari --stage)",
     )
     args = parser.parse_args()
 
     evaluate_and_promote(
         threshold=args.threshold,
         tracking_uri=args.tracking_uri,
+        stage=args.stage,
+        alias=args.alias,
     )
