@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir mlflow>=2.10.0 psycopg2-binary>=2.9.9 "psycopg[bi
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "mlflow server --backend-store-uri ${BACKEND_STORE_URI:-sqlite:///mlflow.db} --default-artifact-root ${MLFLOW_DEFAULT_ARTIFACT_ROOT:-/mlruns} --host 0.0.0.0 --port 5000"]
+CMD ["sh", "-c", "mlflow server --backend-store-uri ${BACKEND_STORE_URI:-sqlite:///mlflow.db} --serve-artifacts --artifacts-destination ${MLFLOW_DEFAULT_ARTIFACT_ROOT:-/mlruns} --default-artifact-root mlflow-artifacts:/ --host 0.0.0.0 --port 5000 --allowed-hosts '*'"]
