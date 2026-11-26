@@ -1,6 +1,6 @@
 # Proyek MLOps: Prediksi harga skin CS2
 
-Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning*, penanganan *Data Drift*, pengemasan kontainer Docker, otomatisasi pipeline CI/CD end-to-end dengan GitHub Actions, serta orkestrasi multi-layanan berbasis Docker Compose.
+Repositori ini berisi implementasi sistem MLOps untuk memprediksi tren pergerakan harga aset digital (*skins*) Counter-Strike 2 di Steam Community Market berbasis *Continual Learning*, penanganan *Data Drift*, pengemasan kontainer Docker, otomatisasi pipeline CI/CD end-to-end dengan GitHub Actions, orkestrasi multi-layanan berbasis Docker Compose, serta *model serving* langsung dari MLflow Model Registry dengan *horizontal scaling* dan *load balancing* Nginx.
 
 ---
 
@@ -22,8 +22,12 @@ CS2SkinPricePrediction/
 ├── docs/
 ├── models/
 │   └── model.pkl
+├── nginx/
+│   └── nginx.conf
 ├── notebooks/
 ├── scripts/
+│   ├── build_serving_image.sh
+│   ├── stress_test.py
 │   └── verify_orchestration.py
 ├── src/
 │   ├── evaluate.py
@@ -216,3 +220,75 @@ Pada tahap orkestrasi, sistem mengintegrasikan tiga layanan mandiri ke dalam sat
    ```bash
    docker compose down
    ```
+
+---
+
+## Model Serving, Load Balancing & Horizontal Scaling (MLflow + Nginx)
+
+Pada tahap *Serving & Scaling*, layanan inferensi tidak lagi menggunakan skrip API manual dengan file `model.pkl` lokal, melainkan dikemas menjadi Docker image langsung dari **MLflow Model Registry** (`models:/cs2-skin-price-predictor@production`) dan diskalakan menjadi **3 replika** di balik **Load Balancer Nginx** (algoritma *Round Robin*).
+
+### 1. Arsitektur layanan serving ter-scale
+
+| Layanan | Image / Kontainer | Port Host | Port Internal | Replika | Fungsi |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| `postgres` | `postgres:15-alpine` (`cs2-postgres-db`) | 5432 | 5432 | 1 | Backend metadata store PostgreSQL untuk MLflow Tracking & Model Registry. |
+| `mlflow-server` | `Dockerfile.mlflow` (`cs2-mlflow-server`) | 5001 | 5000 | 1 | MLflow Server & Model Registry terpusat dengan HTTP artifact proxy (`--serve-artifacts`). |
+| `model-serving` | `cs2-mlflow-serving:v1` | - | 8080 | **3** | Kontainer inferensi MLflow (`pyfunc`) yang dibangun langsung dari Model Registry (`@production`). |
+| `nginx` | `nginx:alpine` (`cs2-nginx-lb`) | 8080 | 80 | 1 | Reverse proxy & Load Balancer (*Round Robin*) yang mendistribusikan trafik ke 3 replika `model-serving`. |
+
+### 2. Alur build Docker image dari MLflow Model Registry
+1. **Menyalakan `postgres` dan `mlflow-server`:**
+   ```bash
+   docker compose up -d --build postgres mlflow-server
+   ```
+2. **Melatih model (dengan signature) dan mempromosikan ke `@production`:**
+   ```bash
+   MLFLOW_TRACKING_URI=http://localhost:5001 python3 src/train.py --model_type random_forest --n_estimators 250 --max_depth 16 --min_samples_split 2 --run_name rf_tuned_deep_serving
+   python3 src/evaluate.py --threshold 0.85 --stage Production --tracking_uri http://localhost:5001
+   ```
+3. **Membangun image `cs2-mlflow-serving:v1` langsung dari MLflow Registry:**
+   ```bash
+   bash scripts/build_serving_image.sh
+   ```
+
+### 3. Menjalankan 3 replika & Load Balancer Nginx
+1. **Menyalakan seluruh stack dengan 3 replika:**
+   ```bash
+   docker compose up -d --remove-orphans
+   ```
+2. **Memeriksa status 3 replika dan Nginx:**
+   ```bash
+   docker compose ps
+   ```
+
+### 4. Pengujian endpoint & distribusi beban
+* **Cek kesehatan melalui Nginx (memeriksa header `X-Upstream-Addr`):**
+  ```bash
+  curl -i http://localhost:8080/ping
+  ```
+* **Kirim request inferensi format `dataframe_split` ke `/invocations`:**
+  ```bash
+  curl -i -X POST http://localhost:8080/invocations \
+    -H "Content-Type: application/json" \
+    -d '{"dataframe_split": {"columns": ["day_of_week", "volume_clean", "price_delta", "volume_delta", "price_ma_3d", "price_ma_7d", ...], "data": [[...]]}}'
+  ```
+  **Contoh respon JSON:**
+  ```json
+  {"predictions": [65266.644, 2158241.928]}
+  ```
+
+### 5. Pengujian beban (*Stress Test*) & Ringkasan Benchmark
+Menjalankan pengujian beban konkuren (150 request, 12 worker konkuren) terhadap endpoint `/invocations` melalui Nginx:
+```bash
+python3 scripts/stress_test.py --requests 150 --concurrency 12 --label "3-Replicas (Nginx Round Robin)"
+```
+
+| Metrik Pengujian | 1 Replika (Baseline) | 3 Replika (Nginx Round Robin) | Interpretasi |
+| :--- | :---: | :---: | :--- |
+| **Total Durasi** | 12.344 s | **9.368 s** | **24,1% lebih cepat** menyelesaikan 150 request konkuren |
+| **Throughput (RPS)** | 12.15 req/s | **16.01 req/s** | **+31,8% peningkatan kapasitas** pemrosesan per detik |
+| **Error Rate** | 0.00% (150/0) | **0.00% (150/0)** | Seluruh request valid dilayani tanpa kegagalan |
+| **Latensi Avg** | 969.02 ms | **731.17 ms** | Rata-rata waktu respons turun **24,5%** |
+| **Latensi p50 (Median)** | 960.89 ms | **650.62 ms** | Mayoritas request **32,3% lebih cepat** |
+| **Latensi p95 / p99** | 1167.06 / 1204.11 ms | 1585.37 / 1729.16 ms | *Tail latency* lebih tinggi akibat kontensi CPU pada host Codespace 2 vCPU saat 3 model berjalan paralel |
+| **Distribusi Beban** | 100.0% (1 replika) | **33.3% / 33.3% / 33.3%** (`50 / 50 / 50`) | Trafik terdistribusi merata dan menghilangkan *single point of failure* |
